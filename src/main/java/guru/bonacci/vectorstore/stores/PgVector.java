@@ -10,6 +10,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
+import guru.bonacci.vectorstore.CustomChatMemoryRepository;
 import guru.bonacci.vectorstore.VectorStoreEvaluator;
 import lombok.extern.slf4j.Slf4j;
 
@@ -20,8 +21,8 @@ public class PgVector extends VectorStoreEvaluator {
 
   private final JdbcClient jdbcClient;
 
-  public PgVector(ChatClient.Builder builder, JdbcClient jdbcClient, VectorStore vectorStore) {
-  	super(builder, vectorStore);
+  public PgVector(CustomChatMemoryRepository memory, ChatClient.Builder builder, JdbcClient jdbcClient, VectorStore vectorStore) {
+  	super(memory, builder, vectorStore);
   	this.jdbcClient = jdbcClient;
   }
 

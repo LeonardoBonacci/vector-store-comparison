@@ -20,12 +20,18 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.io.Resource;
 
+import com.fasterxml.jackson.core.StreamReadFeature;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public abstract class VectorStoreEvaluator implements CommandLineRunner {
 
+  private final CustomChatMemoryRepository memory;
   private final ChatClient chatModel;
   @Getter private final VectorStore vectorStore;
   
@@ -38,11 +44,11 @@ public abstract class VectorStoreEvaluator implements CommandLineRunner {
   @Value("classpath:/questions.txt")
   private Resource questions;
 
-  public VectorStoreEvaluator(ChatClient.Builder builder, VectorStore vectorStore) {
+  public VectorStoreEvaluator(CustomChatMemoryRepository memory, ChatClient.Builder builder, VectorStore vectorStore) {
+  	this.memory = memory;
   	this.chatModel = builder.build();
     this.vectorStore = vectorStore;
   }
-
 
   public abstract void load();
 
@@ -68,7 +74,7 @@ public abstract class VectorStoreEvaluator implements CommandLineRunner {
   	log.info(question);
   	
     // Retrieve documents similar to a query
-    var vectorResultsAsText = similarDocuments(question);
+    final var vectorResultsAsText = similarDocuments(question);
     if (vectorResultsAsText.isEmpty()) {
     	log.error("no search results, try harder");
     	System.exit(0);
@@ -79,17 +85,27 @@ public abstract class VectorStoreEvaluator implements CommandLineRunner {
     vectorResultsAsText.forEach(vr -> log.debug(vr));
 
     String fullText = extractContent(pdfResource);
-    var parser = new BeanOutputConverter<>(Response.class);
+    
+    var mapper = new ObjectMapper();
+    JsonMapper.builder()
+	    	.enable(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
+	    	.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+	    	.enable(StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION)
+	    	.build();
+    var parser = new BeanOutputConverter<>(Response.class, mapper);
     
 		PromptTemplate promptTemplate = new PromptTemplate(prPromptTemplate);
-    var promptParameters = new HashMap<String, Object>();
-    promptParameters.put("sourceDocument", fullText);
-    promptParameters.put("vectorStoreSearchResult", String.join("\n", vectorResultsAsText));
-    promptParameters.put("format", parser.getFormat());
+    var promptParams = new HashMap<String, Object>();
+    promptParams.put("question", question);
+    promptParams.put("sourceDocument", fullText);
+    promptParams.put("vectorStoreSearchResult", String.join("\n", vectorResultsAsText));
+    promptParams.put("memory", memory.asString());
+    promptParams.put("format", parser.getFormat());
     
     double avg = IntStream.range(0, Application.NUM_RUNS)
         .map(i -> {
-          int rating = rate(promptTemplate.create(promptParameters), parser);
+          int rating = rate(promptTemplate.create(promptParams), parser);
+          memory.add("pgvector", vectorResultsAsText, rating);
           log.info("run {} - rating: {}", i + 1, rating);
           return rating;
         })
@@ -123,8 +139,8 @@ public abstract class VectorStoreEvaluator implements CommandLineRunner {
 					.call()
 					.entity(parser);
     
-    log.debug("I am bored");
-    log.debug(response.explanation());
+    log.debug("I am really bored");
+    log.info(response.explanation());
     return response.rating();
   }
   
@@ -132,7 +148,7 @@ public abstract class VectorStoreEvaluator implements CommandLineRunner {
   	String text = "";
     try (final PDDocument document = Loader.loadPDF(loadMe.getFile())) {
         text = new PDFTextStripper().getText(document);
-        log.debug("I am bored");
+        log.debug("I am truly very bored");
         log.debug(text);
     } catch (final Exception ex) {
         log.error("error parsing pdf", ex);

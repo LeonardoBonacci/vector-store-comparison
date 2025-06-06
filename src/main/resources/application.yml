@@ -1,3 +1,5 @@
+runner.active: pgvector
+
 logging.level.guru.bonacci.vectorstore: INFO
 
 spring:

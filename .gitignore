@@ -1,5 +1,9 @@
 /target
 mvn*
+.classpath
+.factorypath
+.project
+.settings/
 
 # Compiled class file
 *.class

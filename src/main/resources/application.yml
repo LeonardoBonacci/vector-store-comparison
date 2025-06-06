@@ -1,0 +1,21 @@
+logging.level.guru.bonacci.vectorstore: INFO
+
+spring:
+  application:
+      name: vectors
+  datasource:
+    url: jdbc:postgresql://localhost:5432/dbname
+    username: admin
+    password: password
+  ai:
+    ollama:
+      chat:
+        model: llama3.2
+      embedding:
+        enabled: true
+        model: mxbai-embed-large
+    vectorstore:
+      pgvector:
+        index-type: HNSW
+        distance-type: COSINE_DISTANCE
+        dimensions: 1024

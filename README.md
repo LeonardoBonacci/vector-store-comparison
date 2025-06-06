@@ -17,4 +17,5 @@ Instead of the, engineering, conventional quantitative benchmarking, let's do a 
 
 ```
 docker compose -f docker-compose-pgvector.yml up
+mvn spring-boot:run
 ```
